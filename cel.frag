@@ -58,6 +58,6 @@ void main() {
     color = color + fres;
 
     gl_FragColor = vec4(vec3(fres), 1.0);
-    // gl_FragColor = vec4(color, tex.a);
+    gl_FragColor = vec4(color, 1.0);
 }
 

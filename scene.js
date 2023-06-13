@@ -1,4 +1,3 @@
-import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.121.1/examples/jsm/controls/OrbitControls.js';
 import * as THREE from 'https://unpkg.com/three@0.120.1/build/three.module.js';
 import { GLTFLoader } from 'https://unpkg.com/three@0.120.1/examples/jsm/loaders/GLTFLoader.js';
 
@@ -12,7 +11,7 @@ const sizes = {
 }
 
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(75, sizes.width / sizes.height, 0.1, 100);
+const camera = new THREE.PerspectiveCamera(90, sizes.width / sizes.height, 0.1, 100);
 const renderer = new THREE.WebGLRenderer(
     { antialias: true, alpha: true, canvas: sceneContainer }
 );
@@ -27,10 +26,10 @@ const celVertexShader = await fetch('./cel.vert').then(response => response.text
 const celFragmentShader = await fetch('./cel.frag').then(response => response.text());
 
 //Lights
-const directionalLight = new THREE.DirectionalLight(0xffffff, 0.9);
-directionalLight.position.set(0, 0, 4);
+const directionalLight = new THREE.DirectionalLight(0xffffff, 0.7);
+directionalLight.position.set(0, 0, 10);
 scene.add(directionalLight);
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.1);
 scene.add(ambientLight);
 
 // shader-lights:
@@ -76,17 +75,16 @@ const light7 = {
 };
 
 //load model
-let can;
+let robot;
+const texture = new THREE.TextureLoader().load('Assets/banner.jpg');
 loader.load('Assets/claptrap.glb', function (glb) {
-    can = glb.scene;
-    const canObject = can.getObjectByName("Cube");
-    canObject.scale.set(1 / 3, 1 / 3, 1 / 3);
-    can.rotation.set(0, 0, 0);
-    can.position.set(0, -.5, -3);
+    robot = glb.scene;
+    const robotObject = robot.getObjectByName("Cube");
+    robotObject.scale.set(1 / 3, 1 / 3, 1 / 3);
+    robot.rotation.set(0, 0, 0);
+    robot.position.set(0, .5, -3);
 
-    const texture = new THREE.TextureLoader().load('Assets/banner.jpg');
-
-    can.getObjectByName("Cube").material = new THREE.ShaderMaterial({
+    robot.getObjectByName("Cube").material = new THREE.ShaderMaterial({
         vertexShader: celVertexShader,
         fragmentShader: celFragmentShader,
         uniforms: {
@@ -97,20 +95,28 @@ loader.load('Assets/claptrap.glb', function (glb) {
         },
     });
 
-    scene.add(can);
+    scene.add(robot);
 });
+
+//add sphere-stand
+const sphereGeometry = new THREE.SphereGeometry(1, 32, 32);
+const sphereMaterial = new THREE.ShaderMaterial({
+    vertexShader: celVertexShader,
+    fragmentShader: celFragmentShader,
+    uniforms: {
+        texture1: { value: null },
+        lights: {
+            value: [light0, light1, light2, light3, light4, light5, light6, light7]
+        }
+    },
+});
+// const sphereMaterial = new THREE.MeshPhysicalMaterial();
+const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
+sphere.position.set(0, -.9, -3);
+scene.add(sphere);
 
 //apply shader
 
-
-// //orbit controls
-// const controls = new OrbitControls(camera, renderer.domElement);
-// controls.autoRotate = false;
-// controls.enablePan = false;
-// controls.minDistance = 2;
-// controls.maxDistance = 15;
-// controls.maxPolarAngle = Math.PI;
-// controls.update()
 
 // move rings through mouse input ---------------------------
 let mouseX;
@@ -125,7 +131,7 @@ sceneContainer.addEventListener('mousemove', (event) => {
     var rotX = event.clientX - mouseX;
     mouseX = event.clientX;
 
-    can.rotation.y += rotX / 100;
+    robot.rotation.y += rotX / 100;
 });
 
 sceneContainer.addEventListener('mousedown', (event) => {
@@ -144,7 +150,6 @@ sceneContainer.addEventListener('mouseup', (event) => {
 // render scene
 function renderScene() {
     scene;
-    // controls.update();
     requestAnimationFrame(renderScene);
     renderer.render(scene, camera);
 };
