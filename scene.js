@@ -27,9 +27,10 @@ const celVertexShader = await fetch('./cel.vert').then(response => response.text
 const celFragmentShader = await fetch('./cel.frag').then(response => response.text());
 
 //Lights
-const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+const directionalLight = new THREE.DirectionalLight(0xffffff, 0.9);
+directionalLight.position.set(0, 0, 4);
 scene.add(directionalLight);
-const ambientLight = new THREE.AmbientLight(0xffffff, .2);
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
 scene.add(ambientLight);
 
 // shader-lights:
@@ -80,7 +81,8 @@ loader.load('Assets/claptrap.glb', function (glb) {
     can = glb.scene;
     const canObject = can.getObjectByName("Cube");
     canObject.scale.set(1 / 3, 1 / 3, 1 / 3);
-    can.rotation.set(-90, 0, 0);
+    can.rotation.set(0, 0, 0);
+    can.position.set(0, -.5, -3);
 
     const texture = new THREE.TextureLoader().load('Assets/banner.jpg');
 
@@ -101,20 +103,48 @@ loader.load('Assets/claptrap.glb', function (glb) {
 //apply shader
 
 
-//orbit controls
-const controls = new OrbitControls(camera, renderer.domElement);
-controls.autoRotate = false;
-controls.enablePan = false;
-controls.minDistance = 2;
-controls.maxDistance = 15;
-controls.maxPolarAngle = Math.PI;
-controls.update()
+// //orbit controls
+// const controls = new OrbitControls(camera, renderer.domElement);
+// controls.autoRotate = false;
+// controls.enablePan = false;
+// controls.minDistance = 2;
+// controls.maxDistance = 15;
+// controls.maxPolarAngle = Math.PI;
+// controls.update()
+
+// move rings through mouse input ---------------------------
+let mouseX;
+let leftMouseDown = false;
+
+sceneContainer.addEventListener('mousemove', (event) => {
+    if (!leftMouseDown) {
+        return;
+    }
+    event.preventDefault();
+
+    var rotX = event.clientX - mouseX;
+    mouseX = event.clientX;
+
+    can.rotation.y += rotX / 100;
+});
+
+sceneContainer.addEventListener('mousedown', (event) => {
+    event.preventDefault();
+    leftMouseDown = true;
+    mouseX = event.clientX;
+});
+sceneContainer.addEventListener('mouseup', (event) => {
+    event.preventDefault();
+    leftMouseDown = false;
+    mouseX = event.clientX;
+});
+//-----------------------------------------------------------
 
 
 // render scene
 function renderScene() {
     scene;
-    controls.update();
+    // controls.update();
     requestAnimationFrame(renderScene);
     renderer.render(scene, camera);
 };
