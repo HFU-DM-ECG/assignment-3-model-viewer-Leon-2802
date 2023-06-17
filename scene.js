@@ -1,5 +1,8 @@
+import { EffectComposer } from 'https://cdn.jsdelivr.net/npm/three@0.121.1/examples/jsm/postprocessing/EffectComposer.js';
+import { RenderPass } from 'https://cdn.jsdelivr.net/npm/three@0.121.1/examples/jsm/postprocessing/RenderPass.js';
 import * as THREE from 'https://unpkg.com/three@0.120.1/build/three.module.js';
 import { GLTFLoader } from 'https://unpkg.com/three@0.120.1/examples/jsm/loaders/GLTFLoader.js';
+import { CustomOutlinePass } from './CustomOutlinePass.js';
 
 // basic variables and components----------------------------------------------------------------
 const sceneContainer = document.getElementById('scene-container');
@@ -16,6 +19,14 @@ const robotPos = {
     z: -3
 };
 
+const params = {
+    color: '#668f7d',
+    strength: 0.25,
+    detail: 0.99,
+    brightness: 0.1,
+    outlineColor: '#000000'
+};
+
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(90, sizes.width / sizes.height, 0.1, 100);
@@ -26,34 +37,53 @@ const renderer = new THREE.WebGLRenderer(
 renderer.setPixelRatio(window.devicePixelRatio);
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.outputEncoding = THREE.sRGBEncoding;
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap
 //-----------------------------------------------------------------------------------------------
 
+// Set up post processing -----------------------------------------------------------------------
+// Create a render target that holds a depthTexture so we can use it in the outline pass
+// See: https://threejs.org/docs/index.html#api/en/renderers/WebGLRenderTarget.depthBuffer
+const depthTexture = new THREE.DepthTexture();
+const renderTarget = new THREE.WebGLRenderTarget(
+    window.innerWidth,
+    window.innerHeight,
+    {
+        depthTexture: depthTexture,
+        depthBuffer: true,
+    }
+);
+
+// Initial render pass.
+const composer = new EffectComposer(renderer, renderTarget);
+const pass = new RenderPass(scene, camera);
+composer.addPass(pass);
+
+// Outline pass.
+const customOutline = new CustomOutlinePass(
+    new THREE.Vector2(window.innerWidth, window.innerHeight),
+    scene,
+    camera
+);
+composer.addPass(customOutline);
+const outlineUniforms = customOutline.fsQuad.material.uniforms;
+//-----------------------------------------------------------------------------------------------
+
+
 //load shaders
-const celVertexShader = await fetch('./cel.vert').then(response => response.text());
-const celFragmentShader = await fetch('./cel.frag').then(response => response.text());
-const outlineVertShader = await fetch('./shaders/outline.vert').then(response => response.text());
-const outlineFragShader = await fetch('./shaders/outline.frag').then(response => response.text());
+const celVertexShader = await fetch('./shaders/cel.vert').then(response => response.text());
+const celFragmentShader = await fetch('./shaders/cel.frag').then(response => response.text());
+
 
 //Lights
 const directionalLight = new THREE.DirectionalLight(0xffffff, 0.7);
 directionalLight.position.set(0, -1, 10);
-// shadow casting
-directionalLight.castShadow = true;
-directionalLight.shadow.mapSize.width = 4096; // increases the shadow mapSize so the shadows are sharper
-directionalLight.shadow.mapSize.height = 4096;
 scene.add(directionalLight);
 const ambientLight = new THREE.AmbientLight(0xffffff, 0.1);
 scene.add(ambientLight);
-// for calculating shading effects:
-let lightDirection = directionalLight.position;
 
 
 
 // set up model for model viewer---------------------------------------------
 let robot;
-let robotOutline
 
 // set up toon shader
 const toonShader = new THREE.ShaderMaterial({
@@ -62,7 +92,6 @@ const toonShader = new THREE.ShaderMaterial({
     fragmentShader: celFragmentShader,
     uniforms: {
         ...THREE.UniformsLib.lights,
-        lightDirection: { value: lightDirection },
         strength: { value: 0.25 },
         detail: { value: 0.99 },
         color: { value: new THREE.Vector3(.4, .56, .49) },
@@ -90,32 +119,6 @@ loader.load('Assets/claptrap.glb', function (glb) {
     scene.add(robot);
 });
 
-
-// set up outline shader
-const outlineShader = new THREE.ShaderMaterial({
-    side: THREE.BackSide,
-    vertexShader: outlineVertShader,
-    fragmentShader: outlineFragShader,
-    uniforms: {
-        color: { value: new THREE.Vector3(0, 0, 0) },
-    },
-});
-
-//outline effect 
-loader.load('Assets/claptrap.glb', function (glb) {
-    robotOutline = glb.scene;
-    const robotObject = robotOutline.getObjectByName("Cube");
-    robotObject.scale.set(1 / 2.9, 1 / 2.9, 1 / 2.9);
-    robotOutline.rotation.set(0, 0, 0);
-    robotOutline.position.set(robotPos.x, robotPos.y, robotPos.z);
-
-    robotOutline.getObjectByName("Cube").material = outlineShader;
-    robotOutline.getObjectByName("antenne").material = outlineShader;
-    robotOutline.getObjectByName("arms").material = outlineShader;
-
-    scene.add(robotOutline);
-});
-
 //add cube-stand
 const cubeGeometry = new THREE.BoxGeometry(2, 1.4, 1.4);
 const cubeMaterial = toonShader.clone();
@@ -141,8 +144,6 @@ sceneContainer.addEventListener('mousemove', (event) => {
     mouseX = event.clientX;
 
     robot.rotation.y += rotX / 100;
-    robotOutline.rotation.y += rotX / 100;
-    // cubeStand.rotation.y += rotX / 100;
 });
 
 sceneContainer.addEventListener('mousedown', (event) => {
@@ -158,13 +159,57 @@ sceneContainer.addEventListener('mouseup', (event) => {
 //-----------------------------------------------------------
 
 
+// GUI for setting shader parameters--------------------------------------
+const gui = new dat.GUI();
+
+// helper functions
+function hexToRGB(hex) {
+    var result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result ? {
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16)
+    } : null;
+}
+function rgbToVec3(rgb) {
+    return new THREE.Vector3((rgb.r / 255), (rgb.g / 255), (rgb.b / 255));
+}
+
+gui.addColor(params, 'color').onChange(function (value) {
+    toonShader.uniforms.color.value = rgbToVec3(hexToRGB(value));
+});
+gui.add(params, 'strength', 0, 1).step(0.01).onChange(function (value) {
+    toonShader.uniforms.strength.value = value;
+});
+gui.add(params, 'detail', 0, 1).step(0.01).onChange(function (value) {
+    toonShader.uniforms.detail.value = value;
+});
+gui.add(params, 'brightness', 0, 1).step(0.01).onChange(function (value) {
+    toonShader.uniforms.brightness.value = value;
+});
+gui.addColor(params, 'outlineColor').onChange(function (value) {
+    outlineUniforms.outlineColor.value.set(value);
+});
+// ------------------------------------------------------------------
+
+
+function onWindowResize() {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    composer.setSize(window.innerWidth, window.innerHeight);
+    customOutline.setSize(window.innerWidth, window.innerHeight);
+}
+window.addEventListener("resize", onWindowResize, false);
+
+
 // render scene
 function renderScene() {
     scene;
-    lightDirection = directionalLight.position;
-    toonShader.uniforms.lightDirection.value = lightDirection;
     requestAnimationFrame(renderScene);
     renderer.render(scene, camera);
+    composer.render();
 };
 
 renderScene();
