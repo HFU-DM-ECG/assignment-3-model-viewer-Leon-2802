@@ -1,3 +1,4 @@
+import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.121.1/examples/jsm/controls/OrbitControls.js';
 import { EffectComposer } from 'https://cdn.jsdelivr.net/npm/three@0.121.1/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'https://cdn.jsdelivr.net/npm/three@0.121.1/examples/jsm/postprocessing/RenderPass.js';
 import * as THREE from 'https://unpkg.com/three@0.120.1/build/three.module.js';
@@ -20,11 +21,16 @@ const robotPos = {
 };
 
 const params = {
-    color: '#668f7d',
-    strength: 0.25,
+    color: '#31c06b',
+    strength: 0.7,
     detail: 0.99,
-    brightness: 0.1,
-    outlineColor: '#000000'
+    brightness: 0.5,
+    outlineColor: '#000000',
+    light: {
+        x: 0,
+        y: -1,
+        z: 10
+    }
 };
 
 
@@ -76,10 +82,12 @@ const celFragmentShader = await fetch('./shaders/cel.frag').then(response => res
 //Lights
 const directionalLight = new THREE.DirectionalLight(0xffffff, 0.7);
 directionalLight.position.set(0, -1, 10);
+directionalLight.target.position.set(robotPos.x, robotPos.y, robotPos.z);
 scene.add(directionalLight);
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.1);
-scene.add(ambientLight);
+scene.add(directionalLight.target);
 
+const lightHelper = new THREE.DirectionalLightHelper(directionalLight, 5);
+directionalLight.add(lightHelper);
 
 
 // set up model for model viewer---------------------------------------------
@@ -92,10 +100,10 @@ const toonShader = new THREE.ShaderMaterial({
     fragmentShader: celFragmentShader,
     uniforms: {
         ...THREE.UniformsLib.lights,
-        strength: { value: 0.25 },
+        strength: { value: 0.7 },
         detail: { value: 0.99 },
-        color: { value: new THREE.Vector3(.4, .56, .49) },
-        brightness: { value: 0.1 }
+        color: { value: new THREE.Vector3(.19, .75, .42) },
+        brightness: { value: 0.5 }
     },
 });
 
@@ -117,12 +125,13 @@ loader.load('Assets/claptrap.glb', function (glb) {
     robot.getObjectByName("arms").material = toonShader;
 
     scene.add(robot);
+    directionalLight.target = robot;
 });
 
 //add cube-stand
 const cubeGeometry = new THREE.BoxGeometry(2, 1.4, 1.4);
 const cubeMaterial = toonShader.clone();
-cubeMaterial.uniforms.color.value = new THREE.Vector3(.4, 0, 0);
+cubeMaterial.uniforms.color.value = new THREE.Vector3(.16, .16, .16);
 const cubeStand = new THREE.Mesh(cubeGeometry, cubeMaterial);
 cubeStand.position.set(0, -2, -3);
 scene.add(cubeStand);
@@ -181,7 +190,7 @@ gui.addColor(params, 'color').onChange(function (value) {
 gui.add(params, 'strength', 0, 1).step(0.01).onChange(function (value) {
     toonShader.uniforms.strength.value = value;
 });
-gui.add(params, 'detail', 0, 1).step(0.01).onChange(function (value) {
+gui.add(params, 'detail', 0, 0.99).step(0.01).onChange(function (value) {
     toonShader.uniforms.detail.value = value;
 });
 gui.add(params, 'brightness', 0, 1).step(0.01).onChange(function (value) {
@@ -189,6 +198,17 @@ gui.add(params, 'brightness', 0, 1).step(0.01).onChange(function (value) {
 });
 gui.addColor(params, 'outlineColor').onChange(function (value) {
     outlineUniforms.outlineColor.value.set(value);
+});
+
+let lightFolder = gui.addFolder('light');
+lightFolder.add(params.light, 'x', -100, 100).step(0.01).onChange(function (value) {
+    directionalLight.position.x = value;
+});
+lightFolder.add(params.light, 'y', -100, 100).step(0.01).onChange(function (value) {
+    directionalLight.position.y = value;
+});
+lightFolder.add(params.light, 'z', -100, 100).step(0.01).onChange(function (value) {
+    directionalLight.position.z = value;
 });
 // ------------------------------------------------------------------
 
@@ -207,6 +227,9 @@ window.addEventListener("resize", onWindowResize, false);
 // render scene
 function renderScene() {
     scene;
+    if (robot)
+        robot.updateWorldMatrix();
+    directionalLight.updateWorldMatrix();
     requestAnimationFrame(renderScene);
     renderer.render(scene, camera);
     composer.render();

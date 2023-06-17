@@ -5,7 +5,7 @@ This model viewer showcases a classic toon shader combined with a Fresnel effect
 
 When these effects are combined, you achieve a toon shader with a slight metallic appearance, perfectly suited for a robot model.
 
-Note: Unfortunately, there is an issue where rotating the robot does not update the lighting correctly to reflect that the light is hitting other parts of the robot, compared to after the initialization...
+Note: Unfortunately, there is an issue where rotating the robot does not result in the shader illuminating the areas facing the light.
 
 # Sources:
 - how to get the direction of lights in a scene: https://www.maya-ndljk.com/blog/threejs-basic-toon-shader

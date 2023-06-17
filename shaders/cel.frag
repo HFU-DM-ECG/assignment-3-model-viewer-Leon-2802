@@ -6,6 +6,7 @@
 varying vec3 vPosition;
 varying vec3 eyeVector;
 varying vec3 vNormal;
+// varying vec3 vViewDir;
 
 uniform float strength;
 uniform float detail;
@@ -21,9 +22,10 @@ float Fresnel(vec3 eyeVector, vec3 worldNormal) {
 }
 
 
-// results in fragment being fully illuminated if angle to light is below
+// results in fragment being fully illuminated if angle to light is below 90°
 float Toon(vec3 normal, vec3 lightDir) 
 {
+    lightDir = lightDir;
     float NdotL = max(0.0, dot(normalize(normal), normalize(lightDir)));
 
     return floor(NdotL/detail);
@@ -33,7 +35,13 @@ float Toon(vec3 normal, vec3 lightDir)
 void main() {
     float fres = Fresnel(eyeVector, vNormal);
 
-    vec4 color = Toon(vNormal, directionalLights[0].direction) * strength + color + brightness;
-    gl_FragColor = vec4(mix(color, vec4(fres), 0.2));
+    float NdotL = dot(vNormal, directionalLights[0].direction);
+    float lightIntensity = floor(NdotL/detail);
+    // float lightIntensity = smoothstep(0.0, 0.01, NdotL);
+    vec3 directionalLight = directionalLights[0].color * lightIntensity;
+
+    vec4 toon_color = vec4((directionalLight+brightness+color.rgb) * strength, 1.0);
+    gl_FragColor = toon_color;
+    // gl_FragColor = vec4(mix(toon_color, vec4(fres/1.5), 0.1));
 }
 
