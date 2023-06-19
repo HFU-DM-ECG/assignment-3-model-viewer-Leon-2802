@@ -41,7 +41,7 @@ void main() {
     vec3 directionalLight = directionalLights[0].color * lightIntensity;
 
     vec4 toon_color = vec4((directionalLight+brightness+color.rgb) * strength, 1.0);
-    gl_FragColor = toon_color;
-    // gl_FragColor = vec4(mix(toon_color, vec4(fres/1.5), 0.1));
+    // gl_FragColor = toon_color;
+    gl_FragColor = vec4(mix(toon_color, vec4(fres/1.5), 0.6));
 }
 

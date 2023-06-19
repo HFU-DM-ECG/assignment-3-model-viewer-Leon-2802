@@ -167,6 +167,13 @@ sceneContainer.addEventListener('mouseup', (event) => {
 });
 //-----------------------------------------------------------
 
+const testSphereGeometry = new THREE.SphereGeometry(.8, 32, 32);
+const sphereMaterial = toonShader.clone();
+sphereMaterial.uniforms.color.value = new THREE.Vector3(.4, .0, .0);
+const testSphere = new THREE.Mesh(testSphereGeometry, sphereMaterial);
+testSphere.position.set(4, 0, -3);
+// scene.add(testSphere);
+
 
 // GUI for setting shader parameters--------------------------------------
 const gui = new dat.GUI();
@@ -186,15 +193,19 @@ function rgbToVec3(rgb) {
 
 gui.addColor(params, 'color').onChange(function (value) {
     toonShader.uniforms.color.value = rgbToVec3(hexToRGB(value));
+    sphereMaterial.uniforms.color.value = rgbToVec3(hexToRGB(value));
 });
 gui.add(params, 'strength', 0, 1).step(0.01).onChange(function (value) {
     toonShader.uniforms.strength.value = value;
+    sphereMaterial.uniforms.strength.value = value;
 });
 gui.add(params, 'detail', 0, 0.99).step(0.01).onChange(function (value) {
     toonShader.uniforms.detail.value = value;
+    sphereMaterial.uniforms.detail.value = value;
 });
 gui.add(params, 'brightness', 0, 1).step(0.01).onChange(function (value) {
     toonShader.uniforms.brightness.value = value;
+    sphereMaterial.uniforms.brightness.value = value;
 });
 gui.addColor(params, 'outlineColor').onChange(function (value) {
     outlineUniforms.outlineColor.value.set(value);
